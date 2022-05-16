@@ -1,22 +1,5 @@
 // -------- Начало модульных тестов поисковой системы ----------
 
-ostream& operator << (ostream &out,const DocumentStatus &status){
-    switch (status) {
-        case DocumentStatus::ACTUAL:
-            out << "ACTUAL"s;
-            break;
-        case DocumentStatus::BANNED:
-            out << "BANNED"s;
-            break;
-        case DocumentStatus::REMOVED:
-            out << "REMOVED"s;
-            break;
-        case DocumentStatus::IRRELEVANT:
-            out << "IRRELEVANT"s;
-            break;
-    }
-    return out;
-}
 // Тест проверяет, что поисковая система исключает стоп-слова при добавлении документов
 void TestExcludeStopWordsFromAddedDocumentContent() {
     const int doc_id = 42;
@@ -168,26 +151,62 @@ void TestSortByRelevance(){
 void TestDocumentsRatingCompute(){
     const int doc_id1 = 12;
     const string content1 = "one red shoe found under a shelf near the table"s;
-    const vector<int> ratings1 = {1, 2, 3};
-
-    const int doc_id2 = 15;
-    const string content2 = "green hat found on the table"s;
-    const vector<int> ratings2 = {3, 3, 5};
-
-    const int doc_id3 = 18;
-    const string content3 = "orange cat lost in the forest"s;
-    const vector<int> ratings3 = {1, 1, 1};
-
-    SearchServer server;
     const string raw_query = "the"s;
-    server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-    server.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
-    server.AddDocument(doc_id3, content3, DocumentStatus::ACTUAL, ratings3);
-    const auto found_docs = server.FindTopDocuments(raw_query);
-    ASSERT_EQUAL(found_docs.size(), 3);
-    ASSERT_EQUAL(found_docs[0].rating, 3);
-    ASSERT_EQUAL(found_docs[1].rating, 2);
-    ASSERT_EQUAL(found_docs[2].rating, 1);
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {1, 3, 4});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, 2);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {5, 2, 8});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, 5);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {11, 0, 2});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, 4);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {33, 10, 14});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, 19);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {-33, -10, -14});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, -19);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {-1, -1, -3});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, -1);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {-5, 5, 1});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, 0);
+    }
+
+    {
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, {-5, -4, 3});
+        const auto found_docs = server.FindTopDocuments(raw_query);
+        ASSERT_EQUAL(found_docs[0].rating, -2);
+    }
 }
 
 void TestFilterByUserPredicateFunction(){
@@ -250,8 +269,54 @@ void TestFilterByUserPredicateFunction(){
     }
 }
 
+void TestSearchByStatuses(){
+    const int doc_id1 = 12;
+    const string content1 = "one red shoe found under a shelf"s;
+    const vector<int> ratings1 = {1, 2, 3};
 
+    const int doc_id2 = 15;
+    const string content2 = "green hat found on the table"s;
+    const vector<int> ratings2 = {3, 3, 5};
+
+    const int doc_id3 = 20;
+    const string content3 = "the black dog went missing yesterday morning"s;
+    const vector<int> ratings3 = {4, 2, 4};
+
+    const int doc_id4 = 22;
+    const string content4 = "found wavy parrot Special signs swear a lot"s;
+    const vector<int> ratings4 = {4, 4, 4};
+
+    SearchServer server;
+    server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
+    server.AddDocument(doc_id2, content2, DocumentStatus::BANNED, ratings2);
+    server.AddDocument(doc_id3, content3, DocumentStatus::REMOVED, ratings3);
+    server.AddDocument(doc_id4, content4, DocumentStatus::IRRELEVANT, ratings4);
+    {
+        const auto found_docs = server.FindTopDocuments("shoe"s, DocumentStatus::ACTUAL);
+        ASSERT_EQUAL(found_docs.size(), 1);
+        ASSERT_EQUAL(found_docs[0].id, doc_id1);
+
+    }
+    {
+        const auto found_docs = server.FindTopDocuments("hat"s, DocumentStatus::BANNED);
+        ASSERT_EQUAL(found_docs.size(), 1);
+        ASSERT_EQUAL(found_docs[0].id, doc_id2);
+    }
+    {
+        const auto found_docs = server.FindTopDocuments("missing"s, DocumentStatus::REMOVED);
+        ASSERT_EQUAL(found_docs.size(), 1);
+        ASSERT_EQUAL(found_docs[0].id, doc_id3);
+    }
+    {
+        const auto found_docs = server.FindTopDocuments("parrot"s, DocumentStatus::IRRELEVANT);
+        ASSERT_EQUAL(found_docs.size(), 1);
+        ASSERT_EQUAL(found_docs[0].id, doc_id4);
+    }
+}
 // Функция TestSearchServer является точкой входа для запуска тестов
+
+
+
 void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
     RUN_TEST(TestAddedDocumentsAreSearchedByRequest);
@@ -260,6 +325,7 @@ void TestSearchServer() {
     RUN_TEST(TestSortByRelevance);
     RUN_TEST(TestDocumentsRatingCompute);
     RUN_TEST(TestFilterByUserPredicateFunction);
+    RUN_TEST(TestSearchByStatuses);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
