@@ -7,6 +7,7 @@
 #include <vector>
 #include <optional>
 #include <algorithm>
+#include <numeric>
 
 using namespace std;
 
@@ -79,13 +80,13 @@ enum class DocumentStatus {
 
 class SearchServer {
 public:
-
+    
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
             : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-                for(const string& word: stop_words_){
-                    IsValidWord(word);
-                }
+        for(const string& word: stop_words_){
+            IsValidWord(word);
+        }
     }
 
     explicit SearchServer(const string& stop_words_text)
@@ -94,9 +95,12 @@ public:
     }
 
     void AddDocument(int document_id, const string& document, DocumentStatus status,
-                                   const vector<int>& ratings) {
-        if ((document_id < 0) || (documents_.count(document_id) > 0)) {
-            throw invalid_argument("DocumentID "s + to_string(document_id) + " is negative or already exists."s);
+                     const vector<int>& ratings) {
+        if ((document_id < 0)) {
+            throw invalid_argument("DocumentID "s + to_string(document_id) + " is negative."s);
+        }
+        if(documents_.count(document_id) > 0) {
+            throw invalid_argument("DocumentID "s + to_string(document_id) + " already exists."s);
         }
         vector<string> words = SplitIntoWordsNoStop(document);
 
@@ -114,7 +118,7 @@ public:
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
         sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
-            if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+            if (abs(lhs.relevance - rhs.relevance) < DOUBLE_COMPARISON_ERROR) {
                 return lhs.rating > rhs.rating;
             } else {
                 return lhs.relevance > rhs.relevance;
@@ -144,7 +148,7 @@ public:
     }
 
     int GetDocumentId(int index) const {
-       return document_ids_.at(index);
+        return document_ids_.at(index);
     }
 
     [[nodiscard]] tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
@@ -178,6 +182,8 @@ private:
         int rating;
         DocumentStatus status;
     };
+    
+    static constexpr double DOUBLE_COMPARISON_ERROR = 1e-6;
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
@@ -190,11 +196,11 @@ private:
     static void IsValidWord(const string& word) {
         // A valid word must not contain special characters
 
-     if(!none_of(word.begin(), word.end(), [](char c) {
+        if(!none_of(word.begin(), word.end(), [](char c) {
             return c >= '\0' && c < ' ';
         })){
-         throw invalid_argument("Stop word - "s + word + " includes non allowed symbols");
-     }
+            throw invalid_argument("Stop word - "s + word + " includes non allowed symbols");
+        }
     }
 
     [[nodiscard]] vector<string> SplitIntoWordsNoStop(const string& text) const {
@@ -212,11 +218,7 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
-        return rating_sum / static_cast<int>(ratings.size());
+        return accumulate(ratings.begin(), ratings.end(),0) / static_cast<int>(ratings.size());
     }
 
     struct QueryWord {
