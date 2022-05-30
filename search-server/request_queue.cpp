@@ -4,26 +4,19 @@
 
 using namespace std;
 
-QueryResult::QueryResult(const vector<Document>& result) : result_(result){
+QueryResult::QueryResult(const vector<Document>& result) : isEmpty(result.empty()){
         }
-
-bool QueryResult::IsEmpty() const{
-            return result_.empty();
-        }
-
-
 
 RequestQueue::RequestQueue(SearchServer& search_server): 
                             search_server_(search_server){
     }
-    
 
 vector<Document> RequestQueue::AddFindRequest(const string& raw_query, DocumentStatus status) {
-        return FillingDeque (QueryResult(search_server_.FindTopDocuments(raw_query, status)));
+        return FillingDeque (search_server_.FindTopDocuments(raw_query, status));
     }
 
 vector<Document> RequestQueue::AddFindRequest(const string& raw_query) {
-        return FillingDeque (QueryResult(search_server_.FindTopDocuments(raw_query)));
+        return FillingDeque (search_server_.FindTopDocuments(raw_query));
     }
 
 int RequestQueue::GetNoResultRequests() const {
@@ -31,16 +24,17 @@ int RequestQueue::GetNoResultRequests() const {
     }
 
 
-const vector<Document>& RequestQueue::FillingDeque(const QueryResult& result){
-        requests_.push_front(result);
-        if(result.IsEmpty()){
+const vector<Document>& RequestQueue::FillingDeque(const vector<Document>& findTopDocResult){
+        QueryResult queryResult(findTopDocResult);
+        requests_.push_front(queryResult);
+        if(queryResult.isEmpty){
             ++empty_request_count;
         }
         if(requests_.size() > min_in_day_){
-            if(requests_.back().IsEmpty()){
+            if(requests_.back().isEmpty){
                 --empty_request_count;
             }
             requests_.pop_back();
         }
-        return result.result_;
+        return findTopDocResult;
     }
