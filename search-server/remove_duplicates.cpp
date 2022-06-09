@@ -8,7 +8,7 @@ void RemoveDuplicates(SearchServer& search_server) {
         for(const auto &[word, frequency] :search_server.GetWordFrequencies(document_id)){
             words.insert(word);
         }
-        if(!words_to_id.count(words)){
+        if(words_to_id.count(words)==0){
             words_to_id[words] = document_id;
         } else {
             int cur_id = words_to_id[words];

@@ -13,17 +13,19 @@ SearchServer::SearchServer(const string& stop_words_text)
             : SearchServer(SplitIntoWords(stop_words_text))  {
     }
 
-std::vector<int>::const_iterator SearchServer::begin() const{
+_Rb_tree_const_iterator<int> SearchServer::begin() const{
     return document_ids_.begin();
 }
 
-std::vector<int>::const_iterator SearchServer::end() const{
+_Rb_tree_const_iterator<int> SearchServer::end() const{
     return document_ids_.end();
 }
 
 const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const{
+
     if(!document_to_word_frequency_.count(document_id)){
-        return *new map<std::string, double> ();
+        static map <std::string, double> empty_map;
+        return empty_map;
     }
     return document_to_word_frequency_.at(document_id);
 }
@@ -53,7 +55,7 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
             document_to_word_frequency_[document_id][word] += inv_word_count;
         }
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-        document_ids_.emplace_back(document_id);
+        document_ids_.insert(document_id);
     }
 
 vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const {
