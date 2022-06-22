@@ -143,6 +143,7 @@ public:
         // Возвращает ссылку на самого себя
         // Инкремент итератора, не указывающего на существующий элемент списка, приводит к неопределённому поведению
         BasicIterator& operator++() noexcept {
+            assert(node_ != nullptr);
             node_ = node_->next_node;
             return *this;
         }
@@ -161,6 +162,7 @@ public:
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] reference operator*() const noexcept {
+            assert(node_ != nullptr);
             return node_->value;
         }
 
@@ -168,6 +170,7 @@ public:
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] pointer operator->() const noexcept {
+            assert(node_ != nullptr);
             return &node_->value;
         }
 
@@ -239,15 +242,8 @@ public:
     // Обменивает содержимое списков за время O(1)
     void swap(SingleLinkedList& other) noexcept {
         if(this == &other) { return;}
-        SingleLinkedList copy;
-        copy.head_.next_node = head_.next_node;
-        copy.size_ = size_;
-        head_.next_node = other.head_.next_node;
-        size_ = other.size_;
-        other.head_.next_node = copy.head_.next_node;
-        other.size_ = copy.size_;
-
-        copy.head_.next_node = nullptr;
+        std::swap(head_.next_node, other.head_.next_node);
+        std::swap(size_, other.size_);
     }
 
     // Возвращает итератор, указывающий на позицию перед первым элементом односвязного списка.
@@ -274,6 +270,7 @@ public:
      * Если при создании элемента будет выброшено исключение, список останется в прежнем состоянии
      */
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+        assert(pos.node_ != nullptr);
         Node *node = new Node(value, pos.node_->next_node);
         pos.node_->next_node = node;
         ++size_;
@@ -281,6 +278,7 @@ public:
     }
 
     Iterator InsertAfter(Iterator pos, const Type& value) {
+        assert(pos.node_ != nullptr);
         Node *node = new Node(value, pos.node_->next_node);
         pos.node_->next_node = node;
         ++size_;
@@ -288,6 +286,7 @@ public:
     }
 
     void PopFront() noexcept {
+        assert (head_.next_node != nullptr);
         auto pnt = head_.next_node->next_node;
         head_.next_node->next_node = nullptr;
         delete head_.next_node;
@@ -299,6 +298,7 @@ public:
      * Возвращает итератор на элемент, следующий за удалённым
      */
     Iterator EraseAfter(ConstIterator pos) noexcept {
+        assert(pos.node_ != nullptr);
         auto pnt = pos.node_->next_node;
         pos.node_->next_node = pos.node_->next_node->next_node;
         delete pnt;
@@ -345,4 +345,5 @@ template <typename Type>
 bool operator>=(const SingleLinkedList<Type>& lhs, const SingleLinkedList<Type>& rhs) {
     return !(lhs < rhs);
 }
+
 
